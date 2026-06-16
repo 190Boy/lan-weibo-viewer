@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>微博圖片防盜鏈測試</title>
+<style>
+  body{font-family:"Microsoft JhengHei",system-ui,sans-serif;background:#0f1115;color:#e6e8ec;padding:30px;line-height:1.6;}
+  input{width:100%;max-width:700px;padding:10px;border-radius:7px;border:1px solid #2a2e38;background:#1a1d24;color:#e6e8ec;font-size:14px;}
+  button{margin-top:10px;padding:9px 18px;border:none;border-radius:7px;background:#6c8cff;color:#fff;font-weight:600;cursor:pointer;}
+  .box{margin-top:24px;padding:16px;border:1px solid #2a2e38;border-radius:10px;}
+  .status{font-weight:600;margin-bottom:10px;}
+  .ok{color:#4caf7d;} .err{color:#e0574b;}
+  img{max-width:100%;border:1px solid #2a2e38;border-radius:6px;}
+  small{color:#9aa0aa;}
+</style>
+</head>
+<body>
+<h2>🌗 微博圖片防盜鏈測試</h2>
+<p>從微博任一張圖按右鍵「複製圖片網址」，貼到下面，按測試。<br>
+<small>網址通常長得像 https://wx1.sinaimg.cn/large/xxxxx.jpg</small></p>
+
+<input type="text" id="url" placeholder="貼上微博圖片網址…" />
+<br><button id="btn">測試能不能顯示</button>
+
+<div class="box" id="box" style="display:none">
+  <div class="status" id="status"></div>
+  <img id="img" />
+</div>
+
+<script>
+document.getElementById("btn").onclick=()=>{
+  const u=document.getElementById("url").value.trim();
+  if(!u)return;
+  const box=document.getElementById("box");
+  const st=document.getElementById("status");
+  const img=document.getElementById("img");
+  box.style.display="block";
+  st.textContent="載入中…"; st.className="status";
+  img.style.display="none";
+  img.onload=()=>{ st.textContent="✅ 成功！圖片能正常顯示，沒有防盜鏈問題。"; st.className="status ok"; img.style.display="block"; };
+  img.onerror=()=>{ st.textContent="❌ 失敗：圖片載不出來（很可能是防盜鏈擋住）。"; st.className="status err"; img.style.display="none"; };
+  img.src=u;
+};
+</script>
+</body>
+</html>
