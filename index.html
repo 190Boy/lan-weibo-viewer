@@ -39,12 +39,19 @@
   .setup{font-size:13px;color:var(--muted);}
   .setup input{min-width:420px;}
   .err{color:var(--danger);}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
+  .seg-btn{background:transparent;color:var(--muted);border:none;border-radius:0;padding:6px 14px;font-weight:600;}
+  .seg-btn.active{background:var(--accent);color:#fff;}
+  .seg-btn:hover{filter:none;}
 </style>
 </head>
 <body>
 <header>
   <h1>🌗 光與夜之戀 微博貼文查詢</h1>
   <span class="stat">共 <b id="total">—</b> 篇</span>
+  <span class="seg" id="modeSeg">
+    <button id="modeSimp" class="seg-btn active">簡中</button><button id="modeTrad" class="seg-btn">繁中</button>
+  </span>
   <span class="stat" id="updated"></span>
 </header>
 
@@ -82,19 +89,21 @@
 
 <script>
 // ===== 資料來源網址（部署到 GitHub Pages 時，直接把網址填在這兩行最方便）=====
-const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";          // 貼文那張工作表的「發布 CSV」網址
-const HARD_CODED_KEYWORD_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=1065540326&single=true&output=csv";      // 「關鍵字」那張工作表的「發布 CSV」網址
+const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";          // 貼文工作表 CSV（A日期 B簡體 C繁中 D連結）
+const HARD_CODED_KEYWORD_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=1065540326&single=true&output=csv";      // 關鍵字工作表 CSV（A標籤 B簡中詞 C繁中詞）
 // =============================================================================
 
-// 快捷篩選按鈕：改從試算表的「關鍵字」工作表讀取。
-//  該表格式： 第一列是標頭（會跳過）；A欄=按鈕名稱，B欄之後=同義詞（留空自動略過）。
-//  內文「包含任一同義詞」就會被篩出來。關鍵字請用簡體（官方貼文是簡體）。
-let QUICK_FILTERS = {}; // 載入後填入
+// 快捷篩選：從「關鍵字」工作表讀取。格式（跳過第一列標頭）：
+//   A欄=按鈕名稱，B欄=簡中關鍵字、C欄=繁中關鍵字（皆用半形逗號分隔多個詞）。
+//   會依目前「簡中/繁中」模式，用對應那欄的關鍵字去比對對應語言的內文。
+let QUICK_FILTERS = {}; // { 名稱: { simp:[...], trad:[...] } }
 
 const $=(id)=>document.getElementById(id);
 let ALL=[];
-let activeQuick=null; // 目前選中的快捷按鈕名稱（null = 沒選）
+let activeQuick=null;
+let mode="simp"; // 預設簡中； "simp" | "trad"
 
+function txt(p){ return mode==="trad" ? (p.trad||p.simp) : p.simp; } // 依模式取內文
 function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
 function getKwUrl(){ return HARD_CODED_KEYWORD_URL || localStorage.getItem("wb_kw_url") || ""; }
 
@@ -109,6 +118,7 @@ function parseCSV(text){
   return rows;
 }
 function ts(d){const x=new Date((d||"").replace(" ","T")+":00");return isNaN(x)?0:x.getTime();}
+function splitKw(s){ return (s||"").split(/[,，]/).map(x=>x.trim()).filter(Boolean); } // 半形/全形逗號都吃
 
 async function loadKeywords(){
   QUICK_FILTERS={};
@@ -117,14 +127,14 @@ async function loadKeywords(){
     try{
       const r=await fetch(url);
       const rows=parseCSV(await r.text());
-      // 跳過第一列標頭；A欄=名稱，B欄之後=同義詞
-      for(let i=1;i<rows.length;i++){
+      for(let i=1;i<rows.length;i++){ // 跳過標頭
         const name=(rows[i][0]||"").trim();
         if(!name)continue;
-        const kws=rows[i].slice(1).map(s=>(s||"").trim()).filter(Boolean);
-        if(kws.length)QUICK_FILTERS[name]=kws;
+        const simp=splitKw(rows[i][1]);
+        const trad=splitKw(rows[i][2]);
+        if(simp.length||trad.length)QUICK_FILTERS[name]={simp,trad};
       }
-    }catch(e){ /* 讀不到就維持沒有快捷按鈕 */ }
+    }catch(e){ /* 讀不到就沒有快捷按鈕 */ }
   }
   renderQuick();
 }
@@ -138,7 +148,8 @@ async function load(){
   try{
     const r=await fetch(url);
     const rows=parseCSV(await r.text());
-    ALL=rows.slice(1).filter(r=>r[2]).map(r=>({date:r[0]||"",text:r[1]||"",link:r[2],ts:ts(r[0])}));
+    // 欄位： 0=日期 1=簡體 2=繁中 3=連結
+    ALL=rows.slice(1).filter(r=>r[3]).map(r=>({date:r[0]||"",simp:r[1]||"",trad:r[2]||"",link:r[3],ts:ts(r[0])}));
     ALL.sort((a,b)=>b.ts-a.ts);
     $("total").textContent=ALL.length;
     doSearch();
@@ -152,37 +163,37 @@ function filtered(){
   if($("from").value){const t=new Date($("from").value+"T00:00:00").getTime();a=a.filter(p=>p.ts>=t);}
   if($("to").value){const t=new Date($("to").value+"T23:59:59").getTime();a=a.filter(p=>p.ts<=t);}
   if(activeQuick){
-    // 快捷篩選：內文包含該組任一關鍵字即中
-    const kws=QUICK_FILTERS[activeQuick].map(k=>k.toLowerCase());
-    a=a.filter(p=>{const t=p.text.toLowerCase();return kws.some(k=>t.includes(k));});
+    const set=QUICK_FILTERS[activeQuick];
+    const kws=(mode==="trad"?set.trad:set.simp).map(k=>k.toLowerCase());
+    a=a.filter(p=>{const t=txt(p).toLowerCase();return kws.some(k=>t.includes(k));});
   }else{
     const q=$("q").value.trim().toLowerCase();
-    if(q)a=a.filter(p=>p.text.toLowerCase().includes(q));
+    if(q)a=a.filter(p=>txt(p).toLowerCase().includes(q));
   }
   return a;
 }
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-const LIMIT=400; // 內文預設顯示字數，超過可展開
+const LIMIT=400;
 function doSearch(){
   const a=filtered();
   $("count").textContent=`符合條件：${a.length} 篇`;
   $("tbody").innerHTML=a.slice(0,800).map(p=>{
+    const t=txt(p);
     let cell;
-    if(p.text.length>LIMIT){
-      cell=`<div class="full" data-open="0">${esc(p.text.slice(0,LIMIT))}…</div>`
+    if(t.length>LIMIT){
+      cell=`<div class="full" data-open="0">${esc(t.slice(0,LIMIT))}…</div>`
           +`<span class="toggle">展開全文 ▼</span>`
-          +`<span class="raw" style="display:none">${esc(p.text)}</span>`;
+          +`<span class="raw" style="display:none">${esc(t)}</span>`;
     }else{
-      cell=`<div class="full">${esc(p.text)}</div>`;
+      cell=`<div class="full">${esc(t)}</div>`;
     }
     return `<tr><td class="date">${p.date}</td><td>${cell}</td><td><a href="${p.link}" target="_blank">開啟</a></td></tr>`;
   }).join("")+(a.length>800?`<tr><td colspan="3" class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</td></tr>`:"");
 
-  // 綁定展開/收合（用 textContent 取回原始文字，避免跳脫字被截壞）
   document.querySelectorAll("#tbody .toggle").forEach(t=>{
     t.onclick=()=>{
-      const div=t.previousElementSibling;            // .full
-      const raw=t.nextElementSibling.textContent;    // 原始全文
+      const div=t.previousElementSibling;
+      const raw=t.nextElementSibling.textContent;
       const open=div.dataset.open==="1";
       if(open){ div.innerHTML=esc(raw.slice(0,LIMIT))+"…"; t.textContent="展開全文 ▼"; div.dataset.open="0"; }
       else    { div.innerHTML=esc(raw);                    t.textContent="收合 ▲";     div.dataset.open="1"; }
@@ -192,24 +203,24 @@ function doSearch(){
 function download(){
   const a=filtered();
   const cell=s=>`"${String(s??"").replace(/"/g,'""')}"`;
-  const csv="\uFEFF日期,內文,連結\n"+a.map(r=>[cell(r.date),cell(r.text),cell(r.link)].join(",")).join("\n");
+  const csv="\uFEFF日期,內文,連結\n"+a.map(p=>[cell(p.date),cell(txt(p)),cell(p.link)].join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const u=URL.createObjectURL(blob);const link=document.createElement("a");
-  link.href=u;link.download="weibo_export_"+Date.now()+".csv";link.click();URL.revokeObjectURL(u);
+  link.href=u;link.download="weibo_"+mode+"_"+Date.now()+".csv";link.click();URL.revokeObjectURL(u);
 }
 
 function renderQuick(){
   const row=$("quickRow");
-  row.querySelectorAll("button").forEach(b=>b.remove()); // 清掉舊按鈕（保留「快捷篩選：」標籤）
+  row.querySelectorAll("button").forEach(b=>b.remove());
   const names=Object.keys(QUICK_FILTERS);
-  $("quickRow").style.display=names.length?"flex":"none";
+  row.style.display=names.length?"flex":"none";
   if(activeQuick&&!QUICK_FILTERS[activeQuick])activeQuick=null;
   names.forEach(name=>{
     const b=document.createElement("button");
     b.textContent=name; b.dataset.name=name;
     b.onclick=()=>{
-      if(activeQuick===name){ activeQuick=null; }   // 再點一次取消
-      else { activeQuick=name; $("q").value=""; }     // 套用，並清掉手打的關鍵字
+      if(activeQuick===name){ activeQuick=null; }
+      else { activeQuick=name; $("q").value=""; }
       updateQuickUI(); doSearch();
     };
     row.appendChild(b);
@@ -221,7 +232,15 @@ function updateQuickUI(){
     b.classList.toggle("active", b.dataset.name===activeQuick);
   });
 }
+function setMode(m){
+  mode=m;
+  $("modeSimp").classList.toggle("active",m==="simp");
+  $("modeTrad").classList.toggle("active",m==="trad");
+  doSearch();
+}
 
+$("modeSimp").onclick=()=>setMode("simp");
+$("modeTrad").onclick=()=>setMode("trad");
 $("btnSaveUrl").onclick=()=>{
   localStorage.setItem("wb_csv_url",$("csvUrl").value.trim());
   localStorage.setItem("wb_kw_url",$("kwUrl").value.trim());
