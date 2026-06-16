@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>光與夜之戀 微博貼文查詢</title>
+<style>
+  :root{--bg:#0f1115;--panel:#1a1d24;--line:#2a2e38;--text:#e6e8ec;--muted:#9aa0aa;--accent:#6c8cff;--green:#4caf7d;--danger:#e0574b;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft JhengHei",system-ui,sans-serif;font-size:14px;line-height:1.55;}
+  header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  h1{font-size:17px;margin:0;font-weight:600;}
+  .stat{color:var(--muted);font-size:13px;} .stat b{color:var(--text);}
+  .wrap{padding:20px 24px;max-width:1100px;margin:0 auto;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;}
+  button{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-size:13px;cursor:pointer;font-weight:600;}
+  button:hover{filter:brightness(1.1);}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  button.green{background:var(--green);}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:12px;color:var(--muted);}
+  input[type=date],input[type=text]{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px;font-size:13px;}
+  input[type=text]{min-width:150px;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--muted);font-size:12px;}
+  td.date{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums;}
+  td a{color:var(--accent);text-decoration:none;} td a:hover{text-decoration:underline;}
+  td .full{white-space:pre-wrap;}
+  .count{color:var(--muted);font-size:13px;margin:12px 0 0;}
+  .setup{font-size:13px;color:var(--muted);}
+  .setup input{min-width:420px;}
+  .err{color:var(--danger);}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌗 光與夜之戀 微博貼文查詢</h1>
+  <span class="stat">共 <b id="total">—</b> 篇</span>
+  <span class="stat" id="updated"></span>
+</header>
+
+<div class="wrap">
+  <!-- 首次使用：填資料來源網址（會記在這台瀏覽器，下次免填）-->
+  <div class="panel" id="setupPanel" style="display:none">
+    <div class="setup">
+      <p>首次使用請貼上「已發布的試算表 CSV 網址」（試算表 → 檔案 → 共用 → 發布到網路 → 選工作表、格式 CSV）：</p>
+      <div class="row">
+        <input type="text" id="csvUrl" placeholder="https://docs.google.com/spreadsheets/d/e/XXXX/pub?gid=0&single=true&output=csv" />
+        <button id="btnSaveUrl">儲存並載入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field"><label>起始日期</label><input type="date" id="from" /></div>
+      <div class="field"><label>結束日期</label><input type="date" id="to" /></div>
+      <div class="field" style="flex:1"><label>關鍵字（內文包含）</label><input type="text" id="q" placeholder="例如：五周年、卡池、維護…" /></div>
+      <button id="btnSearch">篩選</button>
+      <button id="btnReset" class="ghost">清除</button>
+      <button id="btnExport" class="green">下載符合條件的 CSV</button>
+      <button id="btnReload" class="ghost">重新整理資料</button>
+    </div>
+    <p class="count" id="count"></p>
+    <table><thead><tr><th style="width:130px">日期</th><th>內文</th><th style="width:56px">連結</th></tr></thead>
+    <tbody id="tbody"></tbody></table>
+  </div>
+</div>
+
+<script>
+// ===== 資料來源網址：可在這裡直接寫死（部署到 GitHub Pages 時最方便），或留空讓使用者首次輸入 =====
+const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";
+// =====================================================================================
+
+const $=(id)=>document.getElementById(id);
+let ALL=[];
+
+function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
+
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;}else q=false;} else f+=c; }
+    else{ if(c==='"')q=true; else if(c===','){row.push(f);f="";} else if(c==='\n'){row.push(f);rows.push(row);row=[];f="";} else if(c==='\r'){} else f+=c; }
+  }
+  if(f.length||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function ts(d){const x=new Date((d||"").replace(" ","T")+":00");return isNaN(x)?0:x.getTime();}
+
+async function load(){
+  const url=getUrl();
+  if(!url){ $("setupPanel").style.display="block"; return; }
+  $("setupPanel").style.display="none";
+  $("count").textContent="載入中…";
+  try{
+    const r=await fetch(url);
+    const rows=parseCSV(await r.text());
+    ALL=rows.slice(1).filter(r=>r[2]).map(r=>({date:r[0]||"",text:r[1]||"",link:r[2],ts:ts(r[0])}));
+    ALL.sort((a,b)=>b.ts-a.ts);
+    $("total").textContent=ALL.length;
+    doSearch();
+  }catch(e){
+    $("count").innerHTML='<span class="err">載入失敗，請確認資料來源網址、且試算表已「發布到網路」。'+e+'</span>';
+  }
+}
+
+function filtered(){
+  let a=ALL.slice();
+  if($("from").value){const t=new Date($("from").value+"T00:00:00").getTime();a=a.filter(p=>p.ts>=t);}
+  if($("to").value){const t=new Date($("to").value+"T23:59:59").getTime();a=a.filter(p=>p.ts<=t);}
+  const q=$("q").value.trim().toLowerCase();
+  if(q)a=a.filter(p=>p.text.toLowerCase().includes(q));
+  return a;
+}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function doSearch(){
+  const a=filtered();
+  $("count").textContent=`符合條件：${a.length} 篇`;
+  $("tbody").innerHTML=a.slice(0,800).map(p=>
+    `<tr><td class="date">${p.date}</td><td><div class="full">${esc(p.text).slice(0,400)}</div></td><td><a href="${p.link}" target="_blank">開啟</a></td></tr>`
+  ).join("")+(a.length>800?`<tr><td colspan="3" class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</td></tr>`:"");
+}
+function download(){
+  const a=filtered();
+  const cell=s=>`"${String(s??"").replace(/"/g,'""')}"`;
+  const csv="\uFEFF日期,內文,連結\n"+a.map(r=>[cell(r.date),cell(r.text),cell(r.link)].join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const u=URL.createObjectURL(blob);const link=document.createElement("a");
+  link.href=u;link.download="weibo_export_"+Date.now()+".csv";link.click();URL.revokeObjectURL(u);
+}
+
+$("btnSaveUrl").onclick=()=>{localStorage.setItem("wb_csv_url",$("csvUrl").value.trim());load();};
+$("btnSearch").onclick=doSearch;
+$("btnReset").onclick=()=>{$("from").value=$("to").value=$("q").value="";doSearch();};
+$("btnExport").onclick=download;
+$("btnReload").onclick=load;
+
+load();
+</script>
+</body>
+</html>
