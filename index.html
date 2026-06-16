@@ -29,6 +29,11 @@
   td a{color:var(--accent);text-decoration:none;} td a:hover{text-decoration:underline;}
   td .full{white-space:pre-wrap;}
   .count{color:var(--muted);font-size:13px;margin:12px 0 0;}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+  .quick .qlabel{font-size:12px;color:var(--muted);margin-right:2px;}
+  .quick button{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:99px;padding:6px 14px;font-size:13px;font-weight:500;}
+  .quick button:hover{border-color:var(--accent);}
+  .quick button.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
   .setup{font-size:13px;color:var(--muted);}
   .setup input{min-width:420px;}
   .err{color:var(--danger);}
@@ -63,6 +68,7 @@
       <button id="btnExport" class="green">下載符合條件的 CSV</button>
       <button id="btnReload" class="ghost">重新整理資料</button>
     </div>
+    <div class="quick" id="quickRow"><span class="qlabel">快捷篩選：</span></div>
     <p class="count" id="count"></p>
     <table><thead><tr><th style="width:130px">日期</th><th>內文</th><th style="width:56px">連結</th></tr></thead>
     <tbody id="tbody"></tbody></table>
@@ -71,11 +77,26 @@
 
 <script>
 // ===== 資料來源網址：可在這裡直接寫死（部署到 GitHub Pages 時最方便），或留空讓使用者首次輸入 =====
-const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";
+const HARD_CODED_CSV_URL = "";
 // =====================================================================================
+
+// ===== 快捷篩選按鈕設定（要新增/修改就改這裡）=====
+//  格式： { 顯示名稱: ["關鍵字1", "關鍵字2", ...] }
+//  點按鈕後，內文「包含任一個關鍵字」就會被篩出來。
+//  注意：官方貼文是【簡體字】，這裡的關鍵字請用簡體，命中率最準。
+const QUICK_FILTERS = {
+  "更新公告": ["停服更新", "不停服更新", "停机维护"],
+  "靈犀介紹": ["获取方式"],
+  "活動":     ["限时活动预告"],
+  "卡池":     ["收信预告"],
+  "序號":     ["兑换码", "口令码"],
+  "優惠":     ["超值特惠"],
+};
+// ==================================================
 
 const $=(id)=>document.getElementById(id);
 let ALL=[];
+let activeQuick=null; // 目前選中的快捷按鈕名稱（null = 沒選）
 
 function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
 
@@ -112,8 +133,14 @@ function filtered(){
   let a=ALL.slice();
   if($("from").value){const t=new Date($("from").value+"T00:00:00").getTime();a=a.filter(p=>p.ts>=t);}
   if($("to").value){const t=new Date($("to").value+"T23:59:59").getTime();a=a.filter(p=>p.ts<=t);}
-  const q=$("q").value.trim().toLowerCase();
-  if(q)a=a.filter(p=>p.text.toLowerCase().includes(q));
+  if(activeQuick){
+    // 快捷篩選：內文包含該組任一關鍵字即中
+    const kws=QUICK_FILTERS[activeQuick].map(k=>k.toLowerCase());
+    a=a.filter(p=>{const t=p.text.toLowerCase();return kws.some(k=>t.includes(k));});
+  }else{
+    const q=$("q").value.trim().toLowerCase();
+    if(q)a=a.filter(p=>p.text.toLowerCase().includes(q));
+  }
   return a;
 }
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -133,12 +160,32 @@ function download(){
   link.href=u;link.download="weibo_export_"+Date.now()+".csv";link.click();URL.revokeObjectURL(u);
 }
 
+function renderQuick(){
+  const row=$("quickRow");
+  Object.keys(QUICK_FILTERS).forEach(name=>{
+    const b=document.createElement("button");
+    b.textContent=name; b.dataset.name=name;
+    b.onclick=()=>{
+      if(activeQuick===name){ activeQuick=null; }   // 再點一次取消
+      else { activeQuick=name; $("q").value=""; }     // 套用，並清掉手打的關鍵字
+      updateQuickUI(); doSearch();
+    };
+    row.appendChild(b);
+  });
+}
+function updateQuickUI(){
+  document.querySelectorAll("#quickRow button").forEach(b=>{
+    b.classList.toggle("active", b.dataset.name===activeQuick);
+  });
+}
+
 $("btnSaveUrl").onclick=()=>{localStorage.setItem("wb_csv_url",$("csvUrl").value.trim());load();};
-$("btnSearch").onclick=doSearch;
-$("btnReset").onclick=()=>{$("from").value=$("to").value=$("q").value="";doSearch();};
+$("btnSearch").onclick=()=>{ activeQuick=null; updateQuickUI(); doSearch(); };
+$("btnReset").onclick=()=>{$("from").value=$("to").value=$("q").value="";activeQuick=null;updateQuickUI();doSearch();};
 $("btnExport").onclick=download;
 $("btnReload").onclick=load;
 
+renderQuick();
 load();
 </script>
 </body>
