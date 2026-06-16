@@ -3,44 +3,59 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>微博圖片防盜鏈測試</title>
+<title>微博圖片防盜鏈 / 代理測試</title>
 <style>
   body{font-family:"Microsoft JhengHei",system-ui,sans-serif;background:#0f1115;color:#e6e8ec;padding:30px;line-height:1.6;}
-  input{width:100%;max-width:700px;padding:10px;border-radius:7px;border:1px solid #2a2e38;background:#1a1d24;color:#e6e8ec;font-size:14px;}
+  input{width:100%;max-width:760px;padding:10px;border-radius:7px;border:1px solid #2a2e38;background:#1a1d24;color:#e6e8ec;font-size:14px;}
   button{margin-top:10px;padding:9px 18px;border:none;border-radius:7px;background:#6c8cff;color:#fff;font-weight:600;cursor:pointer;}
-  .box{margin-top:24px;padding:16px;border:1px solid #2a2e38;border-radius:10px;}
-  .status{font-weight:600;margin-bottom:10px;}
+  .grid{display:flex;gap:20px;flex-wrap:wrap;margin-top:24px;}
+  .box{flex:1;min-width:300px;padding:16px;border:1px solid #2a2e38;border-radius:10px;}
+  .box h3{margin:0 0 8px;font-size:14px;}
+  .status{font-weight:600;margin-bottom:10px;font-size:13px;}
   .ok{color:#4caf7d;} .err{color:#e0574b;}
   img{max-width:100%;border:1px solid #2a2e38;border-radius:6px;}
-  small{color:#9aa0aa;}
+  small{color:#9aa0aa;word-break:break-all;}
 </style>
 </head>
 <body>
-<h2>🌗 微博圖片防盜鏈測試</h2>
-<p>從微博任一張圖按右鍵「複製圖片網址」，貼到下面，按測試。<br>
+<h2>🌗 微博圖片：直連 vs 代理 測試</h2>
+<p>從微博任一張圖按右鍵「複製圖片網址」，貼到下面，按測試。會同時測「直接連」和「透過代理」兩種。<br>
 <small>網址通常長得像 https://wx1.sinaimg.cn/large/xxxxx.jpg</small></p>
 
 <input type="text" id="url" placeholder="貼上微博圖片網址…" />
-<br><button id="btn">測試能不能顯示</button>
+<br><button id="btn">開始測試</button>
 
-<div class="box" id="box" style="display:none">
-  <div class="status" id="status"></div>
-  <img id="img" />
+<div class="grid">
+  <div class="box">
+    <h3>① 直接連（無代理）</h3>
+    <div class="status" id="s1"></div>
+    <img id="img1" style="display:none" />
+  </div>
+  <div class="box">
+    <h3>② 透過代理 images.weserv.nl</h3>
+    <div class="status" id="s2"></div>
+    <img id="img2" style="display:none" />
+    <div><small id="proxyurl"></small></div>
+  </div>
 </div>
 
 <script>
+function test(imgEl, statusEl, src){
+  statusEl.textContent="載入中…"; statusEl.className="status";
+  imgEl.style.display="none";
+  imgEl.onload=()=>{ statusEl.textContent="✅ 成功，圖能顯示"; statusEl.className="status ok"; imgEl.style.display="block"; };
+  imgEl.onerror=()=>{ statusEl.textContent="❌ 失敗，載不出來"; statusEl.className="status err"; imgEl.style.display="none"; };
+  imgEl.src=src;
+}
 document.getElementById("btn").onclick=()=>{
   const u=document.getElementById("url").value.trim();
   if(!u)return;
-  const box=document.getElementById("box");
-  const st=document.getElementById("status");
-  const img=document.getElementById("img");
-  box.style.display="block";
-  st.textContent="載入中…"; st.className="status";
-  img.style.display="none";
-  img.onload=()=>{ st.textContent="✅ 成功！圖片能正常顯示，沒有防盜鏈問題。"; st.className="status ok"; img.style.display="block"; };
-  img.onerror=()=>{ st.textContent="❌ 失敗：圖片載不出來（很可能是防盜鏈擋住）。"; st.className="status err"; img.style.display="none"; };
-  img.src=u;
+  // 直連
+  test(document.getElementById("img1"), document.getElementById("s1"), u);
+  // 代理：images.weserv.nl 需要去掉 https:// 前綴
+  const proxy="https://images.weserv.nl/?url="+encodeURIComponent(u.replace(/^https?:\/\//,""));
+  document.getElementById("proxyurl").textContent=proxy;
+  test(document.getElementById("img2"), document.getElementById("s2"), proxy);
 };
 </script>
 </body>
