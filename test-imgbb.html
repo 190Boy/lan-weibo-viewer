@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ImgBB 轉存測試</title>
+<style>
+  body{font-family:"Microsoft JhengHei",system-ui,sans-serif;background:#0f1115;color:#e6e8ec;padding:30px;line-height:1.6;}
+  input{width:100%;max-width:760px;padding:10px;border-radius:7px;border:1px solid #2a2e38;background:#1a1d24;color:#e6e8ec;font-size:14px;margin-bottom:8px;}
+  button{margin-top:6px;padding:9px 18px;border:none;border-radius:7px;background:#6c8cff;color:#fff;font-weight:600;cursor:pointer;}
+  .box{margin-top:24px;padding:16px;border:1px solid #2a2e38;border-radius:10px;}
+  .status{font-weight:600;margin-bottom:10px;}
+  .ok{color:#4caf7d;} .err{color:#e0574b;}
+  img{max-width:100%;border:1px solid #2a2e38;border-radius:6px;margin-top:10px;}
+  small{color:#9aa0aa;word-break:break-all;}
+  label{font-size:12px;color:#9aa0aa;display:block;margin-bottom:4px;}
+</style>
+</head>
+<body>
+<h2>🌗 ImgBB 轉存測試</h2>
+<p>測試：把微博圖網址交給 ImgBB，看它能不能去抓回來、轉存、並回傳一個你的網站能直接顯示的網址。</p>
+
+<label>ImgBB API key</label>
+<input type="text" id="key" value="83799e7391c2eda15790ad44fe71bc66" />
+
+<label>微博圖片網址（建議用 large 或 mw2000 尺寸）</label>
+<input type="text" id="url" placeholder="https://wx2.sinaimg.cn/large/xxxxx.jpg" />
+
+<br><button id="btn">測試轉存</button>
+
+<div class="box" id="box" style="display:none">
+  <div class="status" id="status"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+document.getElementById("btn").onclick=async()=>{
+  const key=document.getElementById("key").value.trim();
+  const url=document.getElementById("url").value.trim();
+  if(!key||!url)return;
+  const box=document.getElementById("box");
+  const st=document.getElementById("status");
+  const res=document.getElementById("result");
+  box.style.display="block"; res.innerHTML="";
+  st.textContent="上傳中…請稍候（ImgBB 正在去抓微博圖）"; st.className="status";
+
+  try{
+    const form=new FormData();
+    form.append("image", url);  // 給網址，讓 ImgBB 自己去抓
+    const r=await fetch("https://api.imgbb.com/1/upload?key="+encodeURIComponent(key),{
+      method:"POST", body:form
+    });
+    const j=await r.json();
+    if(j.success){
+      const imgUrl=j.data.url;
+      st.textContent="✅ ImgBB 轉存成功！下面顯示的是 ImgBB 上的圖（你的網站可直接引用）";
+      st.className="status ok";
+      res.innerHTML='<div><small>ImgBB 網址：'+imgUrl+'</small></div><img src="'+imgUrl+'" onerror="this.insertAdjacentHTML(\'afterend\',\'<div class=err>但這個 ImgBB 網址在你的網站顯示失敗</div>\')" />';
+    }else{
+      st.textContent="❌ ImgBB 轉存失敗（很可能是它抓不到微博圖）";
+      st.className="status err";
+      res.innerHTML='<small>回傳：'+JSON.stringify(j).slice(0,400)+'</small>';
+    }
+  }catch(e){
+    st.textContent="❌ 發生錯誤："+e;
+    st.className="status err";
+  }
+};
+</script>
+</body>
+</html>
