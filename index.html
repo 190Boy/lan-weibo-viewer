@@ -28,6 +28,8 @@
   td.date{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums;}
   td a{color:var(--accent);text-decoration:none;} td a:hover{text-decoration:underline;}
   td .full{white-space:pre-wrap;}
+  .toggle{display:inline-block;margin-top:6px;color:var(--accent);cursor:pointer;font-size:13px;user-select:none;}
+  .toggle:hover{text-decoration:underline;}
   .count{color:var(--muted);font-size:13px;margin:12px 0 0;}
   .quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
   .quick .qlabel{font-size:12px;color:var(--muted);margin-right:2px;}
@@ -160,12 +162,32 @@ function filtered(){
   return a;
 }
 function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+const LIMIT=400; // 內文預設顯示字數，超過可展開
 function doSearch(){
   const a=filtered();
   $("count").textContent=`符合條件：${a.length} 篇`;
-  $("tbody").innerHTML=a.slice(0,800).map(p=>
-    `<tr><td class="date">${p.date}</td><td><div class="full">${esc(p.text).slice(0,400)}</div></td><td><a href="${p.link}" target="_blank">開啟</a></td></tr>`
-  ).join("")+(a.length>800?`<tr><td colspan="3" class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</td></tr>`:"");
+  $("tbody").innerHTML=a.slice(0,800).map(p=>{
+    let cell;
+    if(p.text.length>LIMIT){
+      cell=`<div class="full" data-open="0">${esc(p.text.slice(0,LIMIT))}…</div>`
+          +`<span class="toggle">展開全文 ▼</span>`
+          +`<span class="raw" style="display:none">${esc(p.text)}</span>`;
+    }else{
+      cell=`<div class="full">${esc(p.text)}</div>`;
+    }
+    return `<tr><td class="date">${p.date}</td><td>${cell}</td><td><a href="${p.link}" target="_blank">開啟</a></td></tr>`;
+  }).join("")+(a.length>800?`<tr><td colspan="3" class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</td></tr>`:"");
+
+  // 綁定展開/收合（用 textContent 取回原始文字，避免跳脫字被截壞）
+  document.querySelectorAll("#tbody .toggle").forEach(t=>{
+    t.onclick=()=>{
+      const div=t.previousElementSibling;            // .full
+      const raw=t.nextElementSibling.textContent;    // 原始全文
+      const open=div.dataset.open==="1";
+      if(open){ div.innerHTML=esc(raw.slice(0,LIMIT))+"…"; t.textContent="展開全文 ▼"; div.dataset.open="0"; }
+      else    { div.innerHTML=esc(raw);                    t.textContent="收合 ▲";     div.dataset.open="1"; }
+    };
+  });
 }
 function download(){
   const a=filtered();
