@@ -50,9 +50,12 @@
   <!-- 首次使用：填資料來源網址（會記在這台瀏覽器，下次免填）-->
   <div class="panel" id="setupPanel" style="display:none">
     <div class="setup">
-      <p>首次使用請貼上「已發布的試算表 CSV 網址」（試算表 → 檔案 → 共用 → 發布到網路 → 選工作表、格式 CSV）：</p>
+      <p>首次使用請貼上兩個「已發布的試算表 CSV 網址」（試算表 → 檔案 → 共用 → 發布到網路 → 分別選工作表、格式 CSV）：</p>
+      <div class="row" style="margin-bottom:8px;">
+        <input type="text" id="csvUrl" placeholder="貼文工作表的 CSV 網址 …output=csv" />
+      </div>
       <div class="row">
-        <input type="text" id="csvUrl" placeholder="https://docs.google.com/spreadsheets/d/e/XXXX/pub?gid=0&single=true&output=csv" />
+        <input type="text" id="kwUrl" placeholder="「關鍵字」工作表的 CSV 網址（可留空，留空就沒有快捷按鈕）" />
         <button id="btnSaveUrl">儲存並載入</button>
       </div>
     </div>
@@ -76,29 +79,22 @@
 </div>
 
 <script>
-// ===== 資料來源網址：可在這裡直接寫死（部署到 GitHub Pages 時最方便），或留空讓使用者首次輸入 =====
-const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";
-// =====================================================================================
+// ===== 資料來源網址（部署到 GitHub Pages 時，直接把網址填在這兩行最方便）=====
+const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";          // 貼文那張工作表的「發布 CSV」網址
+const HARD_CODED_KEYWORD_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=1065540326&single=true&output=csv";      // 「關鍵字」那張工作表的「發布 CSV」網址
+// =============================================================================
 
-// ===== 快捷篩選按鈕設定（要新增/修改就改這裡）=====
-//  格式： { 顯示名稱: ["關鍵字1", "關鍵字2", ...] }
-//  點按鈕後，內文「包含任一個關鍵字」就會被篩出來。
-//  注意：官方貼文是【簡體字】，這裡的關鍵字請用簡體，命中率最準。
-const QUICK_FILTERS = {
-  "更新公告": ["停服更新", "不停服更新", "停机维护"],
-  "靈犀介紹": ["[星星] 获取方式 [星星]", " | 限定收信预告"],
-  "活動":     ["限时活动预告"],
-  "卡池":     ["收信预告"],
-  "序號":     ["兑换码", "口令码"],
-  "優惠":     ["超值特惠"],
-};
-// ==================================================
+// 快捷篩選按鈕：改從試算表的「關鍵字」工作表讀取。
+//  該表格式： 第一列是標頭（會跳過）；A欄=按鈕名稱，B欄之後=同義詞（留空自動略過）。
+//  內文「包含任一同義詞」就會被篩出來。關鍵字請用簡體（官方貼文是簡體）。
+let QUICK_FILTERS = {}; // 載入後填入
 
 const $=(id)=>document.getElementById(id);
 let ALL=[];
 let activeQuick=null; // 目前選中的快捷按鈕名稱（null = 沒選）
 
 function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
+function getKwUrl(){ return HARD_CODED_KEYWORD_URL || localStorage.getItem("wb_kw_url") || ""; }
 
 function parseCSV(text){
   if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
@@ -112,11 +108,31 @@ function parseCSV(text){
 }
 function ts(d){const x=new Date((d||"").replace(" ","T")+":00");return isNaN(x)?0:x.getTime();}
 
+async function loadKeywords(){
+  QUICK_FILTERS={};
+  const url=getKwUrl();
+  if(url){
+    try{
+      const r=await fetch(url);
+      const rows=parseCSV(await r.text());
+      // 跳過第一列標頭；A欄=名稱，B欄之後=同義詞
+      for(let i=1;i<rows.length;i++){
+        const name=(rows[i][0]||"").trim();
+        if(!name)continue;
+        const kws=rows[i].slice(1).map(s=>(s||"").trim()).filter(Boolean);
+        if(kws.length)QUICK_FILTERS[name]=kws;
+      }
+    }catch(e){ /* 讀不到就維持沒有快捷按鈕 */ }
+  }
+  renderQuick();
+}
+
 async function load(){
   const url=getUrl();
   if(!url){ $("setupPanel").style.display="block"; return; }
   $("setupPanel").style.display="none";
   $("count").textContent="載入中…";
+  await loadKeywords();
   try{
     const r=await fetch(url);
     const rows=parseCSV(await r.text());
@@ -162,7 +178,11 @@ function download(){
 
 function renderQuick(){
   const row=$("quickRow");
-  Object.keys(QUICK_FILTERS).forEach(name=>{
+  row.querySelectorAll("button").forEach(b=>b.remove()); // 清掉舊按鈕（保留「快捷篩選：」標籤）
+  const names=Object.keys(QUICK_FILTERS);
+  $("quickRow").style.display=names.length?"flex":"none";
+  if(activeQuick&&!QUICK_FILTERS[activeQuick])activeQuick=null;
+  names.forEach(name=>{
     const b=document.createElement("button");
     b.textContent=name; b.dataset.name=name;
     b.onclick=()=>{
@@ -172,6 +192,7 @@ function renderQuick(){
     };
     row.appendChild(b);
   });
+  updateQuickUI();
 }
 function updateQuickUI(){
   document.querySelectorAll("#quickRow button").forEach(b=>{
@@ -179,13 +200,16 @@ function updateQuickUI(){
   });
 }
 
-$("btnSaveUrl").onclick=()=>{localStorage.setItem("wb_csv_url",$("csvUrl").value.trim());load();};
+$("btnSaveUrl").onclick=()=>{
+  localStorage.setItem("wb_csv_url",$("csvUrl").value.trim());
+  localStorage.setItem("wb_kw_url",$("kwUrl").value.trim());
+  load();
+};
 $("btnSearch").onclick=()=>{ activeQuick=null; updateQuickUI(); doSearch(); };
 $("btnReset").onclick=()=>{$("from").value=$("to").value=$("q").value="";activeQuick=null;updateQuickUI();doSearch();};
 $("btnExport").onclick=download;
 $("btnReload").onclick=load;
 
-renderQuick();
 load();
 </script>
 </body>
