@@ -11,7 +11,7 @@
   header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
   h1{font-size:17px;margin:0;font-weight:600;}
   .stat{color:var(--muted);font-size:13px;} .stat b{color:var(--text);}
-  .wrap{padding:20px 24px;max-width:1100px;margin:0 auto;}
+  .wrap{padding:20px 24px;max-width:1600px;margin:0 auto;}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;}
   button{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-size:13px;cursor:pointer;font-weight:600;}
@@ -30,9 +30,27 @@
   td .full{white-space:pre-wrap;}
   .toggle{display:inline-block;margin-top:6px;color:var(--accent);cursor:pointer;font-size:13px;user-select:none;}
   .toggle:hover{text-decoration:underline;}
-  .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
-  .thumb{width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:#1a1d24;cursor:pointer;}
+  /* 卡片式：左文字、右圖片 */
+  .post{display:flex;gap:20px;align-items:flex-start;padding:16px 4px;border-bottom:1px solid var(--line);}
+  .post-main{flex:1;min-width:0;}
+  .post-meta{display:flex;gap:14px;align-items:center;margin-bottom:6px;}
+  .post-meta .date{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .post-meta a{color:var(--accent);text-decoration:none;font-size:13px;}
+  .post-meta a:hover{text-decoration:underline;}
+  .full{white-space:pre-wrap;}
   .vbadge{display:inline-block;background:#e0574b;color:#fff;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;margin-top:8px;}
+  /* 微博式方格圖：固定尺寸、裁切填滿 */
+  .imgs{flex-shrink:0;display:grid;gap:6px;}
+  .imgs.single{grid-template-columns:repeat(1,200px);}
+  .imgs.multi{grid-template-columns:repeat(3,104px);}
+  .imgs.single .thumb{width:200px;height:200px;}
+  .imgs.multi .thumb{width:104px;height:104px;}
+  .thumb{object-fit:cover;border-radius:6px;border:1px solid var(--line);background:#1a1d24;cursor:pointer;display:block;}
+  @media (max-width:820px){
+    .post{flex-direction:column;gap:12px;}
+    .imgs.single{grid-template-columns:repeat(1,160px);}
+    .imgs.single .thumb{width:160px;height:160px;}
+  }
   .count{color:var(--muted);font-size:13px;margin:12px 0 0;}
   .quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
   .quick .qlabel{font-size:12px;color:var(--muted);margin-right:2px;}
@@ -85,8 +103,7 @@
     </div>
     <div class="quick" id="quickRow"><span class="qlabel">快捷篩選：</span></div>
     <p class="count" id="count"></p>
-    <table><thead><tr><th style="width:130px">日期</th><th>內文</th><th style="width:56px">連結</th></tr></thead>
-    <tbody id="tbody"></tbody></table>
+    <div id="list"></div>
   </div>
 </div>
 
@@ -185,26 +202,36 @@ const LIMIT=400;
 function doSearch(){
   const a=filtered();
   $("count").textContent=`符合條件：${a.length} 篇`;
-  $("tbody").innerHTML=a.slice(0,800).map(p=>{
+  $("list").innerHTML=a.slice(0,800).map(p=>{
     const t=txt(p);
-    let cell;
+    // 文字
+    let textHtml;
     if(t.length>LIMIT){
-      cell=`<div class="full" data-open="0">${esc(t.slice(0,LIMIT))}…</div>`
+      textHtml=`<div class="full" data-open="0">${esc(t.slice(0,LIMIT))}…</div>`
           +`<span class="toggle">展開全文 ▼</span>`
           +`<span class="raw" style="display:none">${esc(t)}</span>`;
     }else{
-      cell=`<div class="full">${esc(t)}</div>`;
+      textHtml=`<div class="full">${esc(t)}</div>`;
     }
-    if(p.type==="影片"){ cell+=`<div><span class="vbadge">🎬 含影片，點「開啟」看</span></div>`; }
+    if(p.type==="影片"){ textHtml+=`<div><span class="vbadge">🎬 含影片，點「開啟原貼」觀看</span></div>`; }
+    // 圖片（微博式方格）
+    let imgsHtml="";
     if(p.images&&p.images.length){
-      cell+=`<div class="thumbs">`+p.images.map(u=>
+      const cls=p.images.length===1?"single":"multi";
+      imgsHtml=`<div class="imgs ${cls}">`+p.images.map(u=>
         `<a href="${u}" target="_blank"><img class="thumb" loading="lazy" src="${u}" /></a>`
       ).join("")+`</div>`;
     }
-    return `<tr><td class="date">${p.date}</td><td>${cell}</td><td><a href="${p.link}" target="_blank">開啟</a></td></tr>`;
-  }).join("")+(a.length>800?`<tr><td colspan="3" class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</td></tr>`:"");
+    return `<div class="post">
+      <div class="post-main">
+        <div class="post-meta"><span class="date">${p.date}</span><a href="${p.link}" target="_blank">開啟原貼 ↗</a></div>
+        ${textHtml}
+      </div>
+      ${imgsHtml}
+    </div>`;
+  }).join("")+(a.length>800?`<p class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</p>`:"");
 
-  document.querySelectorAll("#tbody .toggle").forEach(t=>{
+  document.querySelectorAll("#list .toggle").forEach(t=>{
     t.onclick=()=>{
       const div=t.previousElementSibling;
       const raw=t.nextElementSibling.textContent;
