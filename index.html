@@ -31,7 +31,8 @@
   .toggle{display:inline-block;margin-top:6px;color:var(--accent);cursor:pointer;font-size:13px;user-select:none;}
   .toggle:hover{text-decoration:underline;}
   /* 卡片式：左文字、右圖片 */
-  .post{display:flex;gap:20px;align-items:flex-start;padding:16px 4px;border-bottom:1px solid var(--line);}
+  .post{display:flex;gap:20px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px;transition:border-color .15s;}
+  .post:hover{border-color:#3a4150;}
   .post-main{flex:1;min-width:0;}
   .post-meta{display:flex;gap:14px;align-items:center;margin-bottom:6px;}
   .post-meta .date{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
@@ -60,6 +61,9 @@
   .setup{font-size:13px;color:var(--muted);}
   .setup input{min-width:420px;}
   .err{color:var(--danger);}
+  .listhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:4px 4px 10px;border-bottom:2px solid var(--line);margin-bottom:4px;}
+  .listhead-title{font-size:15px;font-weight:600;color:var(--text);}
+  .listhead-hint{font-size:12px;color:var(--muted);margin-left:auto;}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
   .seg-btn{background:transparent;color:var(--muted);border:none;border-radius:0;padding:6px 14px;font-weight:600;}
   .seg-btn.active{background:var(--accent);color:#fff;}
@@ -102,9 +106,14 @@
       <button id="btnReload" class="ghost">重新整理資料</button>
     </div>
     <div class="quick" id="quickRow"><span class="qlabel">快捷篩選：</span></div>
-    <p class="count" id="count"></p>
-    <div id="list"></div>
   </div>
+
+  <div class="listhead">
+    <span class="listhead-title">貼文列表</span>
+    <span class="count" id="count" style="margin:0"></span>
+    <span class="listhead-hint">點縮圖看大圖 · 點「開啟原貼」到微博</span>
+  </div>
+  <div id="list"></div>
 </div>
 
 <script>
