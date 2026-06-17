@@ -30,6 +30,9 @@
   td .full{white-space:pre-wrap;}
   .toggle{display:inline-block;margin-top:6px;color:var(--accent);cursor:pointer;font-size:13px;user-select:none;}
   .toggle:hover{text-decoration:underline;}
+  .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .thumb{width:90px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:#1a1d24;cursor:pointer;}
+  .vbadge{display:inline-block;background:#e0574b;color:#fff;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;margin-top:8px;}
   .count{color:var(--muted);font-size:13px;margin:12px 0 0;}
   .quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
   .quick .qlabel{font-size:12px;color:var(--muted);margin-right:2px;}
@@ -148,8 +151,13 @@ async function load(){
   try{
     const r=await fetch(url);
     const rows=parseCSV(await r.text());
-    // 欄位： 0=日期 1=簡體 2=繁中 3=連結
-    ALL=rows.slice(1).filter(r=>r[3]).map(r=>({date:r[0]||"",simp:r[1]||"",trad:r[2]||"",link:r[3],ts:ts(r[0])}));
+    // 欄位： 0=日期 1=簡體 2=繁中 3=連結 4=圖片(換行分隔) 5=類型
+    ALL=rows.slice(1).filter(r=>r[3]).map(r=>({
+      date:r[0]||"",simp:r[1]||"",trad:r[2]||"",link:r[3],
+      images:(r[4]||"").split(/[\n\r]+/).map(s=>s.trim()).filter(Boolean),
+      type:r[5]||"圖文",
+      ts:ts(r[0])
+    }));
     ALL.sort((a,b)=>b.ts-a.ts);
     $("total").textContent=ALL.length;
     doSearch();
@@ -187,6 +195,12 @@ function doSearch(){
     }else{
       cell=`<div class="full">${esc(t)}</div>`;
     }
+    if(p.type==="影片"){ cell+=`<div><span class="vbadge">🎬 含影片，點「開啟」看</span></div>`; }
+    if(p.images&&p.images.length){
+      cell+=`<div class="thumbs">`+p.images.map(u=>
+        `<a href="${u}" target="_blank"><img class="thumb" loading="lazy" src="${u}" /></a>`
+      ).join("")+`</div>`;
+    }
     return `<tr><td class="date">${p.date}</td><td>${cell}</td><td><a href="${p.link}" target="_blank">開啟</a></td></tr>`;
   }).join("")+(a.length>800?`<tr><td colspan="3" class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</td></tr>`:"");
 
@@ -203,7 +217,7 @@ function doSearch(){
 function download(){
   const a=filtered();
   const cell=s=>`"${String(s??"").replace(/"/g,'""')}"`;
-  const csv="\uFEFF日期,內文,連結\n"+a.map(p=>[cell(p.date),cell(txt(p)),cell(p.link)].join(",")).join("\n");
+  const csv="\uFEFF日期,內文,連結,圖片,類型\n"+a.map(p=>[cell(p.date),cell(txt(p)),cell(p.link),cell((p.images||[]).join("\n")),cell(p.type||"圖文")].join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const u=URL.createObjectURL(blob);const link=document.createElement("a");
   link.href=u;link.download="weibo_"+mode+"_"+Date.now()+".csv";link.click();URL.revokeObjectURL(u);
