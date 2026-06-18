@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GIF 動圖代理測試</title>
+<style>
+body{font-family:system-ui,"Microsoft JhengHei";background:#0f1115;color:#e6e8ec;padding:24px;}
+.row{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;}
+.card{border:1px solid #2a2e38;border-radius:10px;padding:12px;width:300px;}
+.card h3{font-size:13px;margin:0 0 6px;color:#6c8cff;}
+.st{font-size:12px;font-weight:600;margin-bottom:8px;}
+.ok{color:#4caf7d;}.err{color:#e0574b;}
+img{max-width:100%;border:1px solid #2a2e38;border-radius:6px;}
+small{color:#888;word-break:break-all;font-size:11px;}
+input{width:100%;padding:8px;background:#1a1d24;color:#e6e8ec;border:1px solid #2a2e38;border-radius:6px;}
+b{color:#ffd479;}
+</style></head><body>
+<h2>GIF 動圖代理測試</h2>
+<p>貼一張 <b>.gif</b> 微博圖原始網址（結尾要是 .gif），按測試。看哪種能<b>動起來</b>（不只顯示，要會動）。</p>
+<input id="u" placeholder="https://wx4.sinaimg.cn/large/xxxxx.gif" value="">
+<button onclick="go()" style="margin-top:10px;padding:8px 18px;background:#6c8cff;color:#fff;border:none;border-radius:6px;font-weight:600;">測試</button>
+<div class="row" id="row"></div>
+<script>
+function variants(u){
+  const baidu="image.baidu.com/search/down?url="+u;
+  const enc=encodeURIComponent(baidu);
+  return [
+    ["① 現用(會變靜態)", "https://images.weserv.nl/?url="+enc+"&w=400"],
+    ["② 不限寬", "https://images.weserv.nl/?url="+enc],
+    ["③ 保留所有幀 n=-1", "https://images.weserv.nl/?url="+enc+"&n=-1"],
+    ["④ 指定輸出 gif", "https://images.weserv.nl/?url="+enc+"&output=gif"],
+    ["⑤ n=-1 + 限寬", "https://images.weserv.nl/?url="+enc+"&n=-1&w=400"],
+  ];
+}
+function go(){
+  const u=document.getElementById("u").value.trim();
+  if(!u){alert("請貼一張 .gif 網址");return;}
+  const row=document.getElementById("row"); row.innerHTML="";
+  variants(u).forEach(([name,src])=>{
+    const c=document.createElement("div"); c.className="card";
+    c.innerHTML='<h3>'+name+'</h3><div class="st">載入中…</div><img><div><small>'+src+'</small></div>';
+    const st=c.querySelector(".st"), img=c.querySelector("img");
+    img.onload=()=>{st.textContent="✅ 有顯示（請用眼睛看會不會動）";st.className="st ok";};
+    img.onerror=()=>{st.textContent="❌ 失敗";st.className="st err";img.style.display="none";};
+    img.src=src;
+    row.appendChild(c);
+  });
+}
+</script></body></html>
