@@ -133,6 +133,15 @@ let activeQuick=null;
 let mode="simp"; // 預設簡中； "simp" | "trad"
 
 function txt(p){ return mode==="trad" ? (p.trad||p.simp) : p.simp; } // 依模式取內文
+
+// 把微博原始圖網址，套上「百度代理 + weserv」讓它能在本站顯示（繞過微博防盜鏈）
+// E 欄存的是乾淨的 sinaimg 原始網址；萬一哪天代理失效，只要改這個函式即可。
+function proxify(u){
+  if(!u) return u;
+  if(/i\.ibb\.co|images\.weserv\.nl/.test(u)) return u; // 已經是可直接顯示的網址就不再包
+  const baidu = "image.baidu.com/search/down?url=" + u; // 第一層：百度去微博抓
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu); // 第二層：weserv 轉出
+}
 function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
 function getKwUrl(){ return HARD_CODED_KEYWORD_URL || localStorage.getItem("wb_kw_url") || ""; }
 
@@ -223,13 +232,14 @@ function doSearch(){
       textHtml=`<div class="full">${esc(t)}</div>`;
     }
     if(p.type==="影片"){ textHtml+=`<div><span class="vbadge">🎬 含影片，點「開啟原貼」觀看</span></div>`; }
-    // 圖片（微博式方格）
+    // 圖片（微博式方格）；E 欄存原始網址，顯示時即時套代理
     let imgsHtml="";
     if(p.images&&p.images.length){
       const cls=p.images.length===1?"single":"multi";
-      imgsHtml=`<div class="imgs ${cls}">`+p.images.map(u=>
-        `<a href="${u}" target="_blank"><img class="thumb" loading="lazy" src="${u}" /></a>`
-      ).join("")+`</div>`;
+      imgsHtml=`<div class="imgs ${cls}">`+p.images.map(u=>{
+        const src=proxify(u);
+        return `<a href="${src}" target="_blank"><img class="thumb" loading="lazy" src="${src}" /></a>`;
+      }).join("")+`</div>`;
     }
     return `<div class="post">
       <div class="post-main">
