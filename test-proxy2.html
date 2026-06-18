@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>頑固圖代理測試</title>
+<style>
+body{font-family:system-ui,"Microsoft JhengHei";background:#0f1115;color:#e6e8ec;padding:24px;}
+.row{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;}
+.card{border:1px solid #2a2e38;border-radius:10px;padding:12px;width:280px;}
+.card h3{font-size:13px;margin:0 0 8px;color:#6c8cff;}
+.st{font-size:12px;font-weight:600;margin-bottom:8px;}
+.ok{color:#4caf7d;}.err{color:#e0574b;}
+img{max-width:100%;border:1px solid #2a2e38;border-radius:6px;}
+small{color:#888;word-break:break-all;font-size:11px;}
+input{width:100%;padding:8px;background:#1a1d24;color:#e6e8ec;border:1px solid #2a2e38;border-radius:6px;}
+</style></head><body>
+<h2>頑固圖代理測試</h2>
+<p>貼一張「在你網站破掉」的微博圖原始網址（large 或 bmiddle 都行），按測試，看哪種代理能顯示。</p>
+<input id="u" placeholder="https://wx1.sinaimg.cn/wap360/xxxxx.jpg" value="https://wx1.sinaimg.cn/orj960/007vCYA0gy1iddc3xfjxxj30m81e2qgm.jpg">
+<button onclick="go()" style="margin-top:10px;padding:8px 18px;background:#6c8cff;color:#fff;border:none;border-radius:6px;font-weight:600;">測試</button>
+<div class="row" id="row"></div>
+<script>
+function variants(u){
+  const noproto=u.replace(/^https?:\/\//,"");
+  return [
+    ["① 現用：weserv+百度", "https://images.weserv.nl/?url="+encodeURIComponent("image.baidu.com/search/down?url="+u)],
+    ["② weserv 直連", "https://images.weserv.nl/?url="+encodeURIComponent(noproto)],
+    ["③ weserv 直連+限寬400", "https://images.weserv.nl/?url="+encodeURIComponent(noproto)+"&w=400"],
+    ["④ weserv+百度+限寬400", "https://images.weserv.nl/?url="+encodeURIComponent("image.baidu.com/search/down?url="+u)+"&w=400"],
+    ["⑤ wsrv.nl 直連+限寬400", "https://wsrv.nl/?url="+encodeURIComponent(noproto)+"&w=400"],
+    ["⑥ 百度代理直連", "https://image.baidu.com/search/down?url="+u],
+  ];
+}
+function go(){
+  const u=document.getElementById("u").value.trim();
+  const row=document.getElementById("row"); row.innerHTML="";
+  variants(u).forEach(([name,src])=>{
+    const c=document.createElement("div"); c.className="card";
+    c.innerHTML='<h3>'+name+'</h3><div class="st">載入中…</div><img><div><small>'+src+'</small></div>';
+    const st=c.querySelector(".st"), img=c.querySelector("img");
+    img.onload=()=>{st.textContent="✅ 成功";st.className="st ok";};
+    img.onerror=()=>{st.textContent="❌ 失敗";st.className="st err";img.style.display="none";};
+    img.src=src;
+    row.appendChild(c);
+  });
+}
+go();
+</script></body></html>
