@@ -232,6 +232,8 @@ function doSearch(){
       textHtml=`<div class="full">${esc(t)}</div>`;
     }
     if(p.type==="影片"){ textHtml+=`<div><span class="vbadge">🎬 含影片，點「開啟原貼」觀看</span></div>`; }
+    else if(p.type==="直播"){ textHtml+=`<div><span class="vbadge">📡 直播，點「開啟原貼」查看</span></div>`; }
+    else if(p.type==="轉發"){ textHtml+=`<div><span class="vbadge" style="background:#4a5568">🔁 轉發</span></div>`; }
     // 圖片（微博式方格）；E 欄存原始網址，顯示時即時套代理
     let imgsHtml="";
     if(p.images&&p.images.length){
