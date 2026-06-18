@@ -142,6 +142,12 @@ function proxify(u){
   const baidu = "image.baidu.com/search/down?url=" + u;
   return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu) + "&w=400";
 }
+// 點開看大圖用：不限寬，保留高清（mw2000）
+function proxifyBig(u){
+  if(!u) return u;
+  const baidu = "image.baidu.com/search/down?url=" + u;
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu);
+}
 // 破圖時自動換尺寸重試：bmiddle → large → original → largest，總有一個代理過得了
 function imgFallback(img){
   const sizes = ["bmiddle","wap360","large","orj960","original","orj1080","largest"];
@@ -253,8 +259,9 @@ function doSearch(){
     if(p.images&&p.images.length){
       const cls=p.images.length===1?"single":"multi";
       imgsHtml=`<div class="imgs ${cls}">`+p.images.map(u=>{
-        const src=proxify(u);
-        return `<a href="${src}" target="_blank"><img class="thumb" loading="lazy" src="${src}" data-orig="${u}" onerror="imgFallback(this)" /></a>`;
+        const src=proxify(u);                                   // 縮圖：小尺寸（快）
+        const big=proxifyBig(u.replace(/(sinaimg\.cn\/)[^/]+(\/)/, `$1mw2000$2`)); // 點開：mw2000 高清
+        return `<a href="${big}" target="_blank"><img class="thumb" loading="lazy" src="${src}" data-orig="${u}" onerror="imgFallback(this)" /></a>`;
       }).join("")+`</div>`;
     }
     return `<div class="post">
