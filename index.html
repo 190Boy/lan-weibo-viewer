@@ -140,7 +140,7 @@ function proxify(u){
   if(!u) return u;
   if(/i\.ibb\.co|images\.weserv\.nl/.test(u)) return u; // 已經是可直接顯示的網址就不再包
   const baidu = "image.baidu.com/search/down?url=" + u; // 第一層：百度去微博抓
-  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu); // 第二層：weserv 轉出
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu) + "&w=400"; // 第二層：weserv 轉出，限寬 400（實測最穩、又快）
 }
 function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
 function getKwUrl(){ return HARD_CODED_KEYWORD_URL || localStorage.getItem("wb_kw_url") || ""; }
