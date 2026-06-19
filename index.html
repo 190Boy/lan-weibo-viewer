@@ -1,153 +1,386 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>光與夜之戀 - 專屬圖鑑</title>
-    <style>
-        /* 基礎樣式：深色質感背景 */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #f0f0f0; margin: 0; padding: 20px; }
-        h1 { text-align: center; color: #d4af37; margin-bottom: 40px; letter-spacing: 2px; }
-        
-        /* 時間軸與活動區塊 */
-        .timeline-event { max-width: 1200px; margin: 0 auto 60px auto; border-left: 3px solid #d4af37; padding-left: 20px; position: relative; }
-        .timeline-event::before { content: ''; position: absolute; left: -9px; top: 0; width: 15px; height: 15px; background-color: #d4af37; border-radius: 50%; }
-        .event-title { font-size: 1.6em; color: #d4af37; margin-bottom: 5px; font-weight: bold; }
-        .event-date { font-size: 0.9em; color: #888; margin-bottom: 20px; }
-        
-        /* 圖片畫廊（瀑布流排版，支援長圖） */
-        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; align-items: start; }
-        .card { background: #1e1e1e; border-radius: 8px; padding: 10px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .card:hover { transform: translateY(-5px); box-shadow: 0 8px 12px rgba(0,0,0,0.5); border: 1px solid #333; }
-        .card img { width: 100%; height: auto; border-radius: 4px; display: block; }
-        .card-info { margin-top: 12px; text-align: center; font-size: 0.9em; line-height: 1.4; }
-        .card-tag { display: inline-block; background: #333; color: #d4af37; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; margin-top: 5px; }
-        
-        /* 燈箱樣式 (Modal) */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.9); }
-        .modal-content { margin: 40px auto; display: block; width: 90%; max-width: 800px; animation: zoom 0.3s; }
-        @keyframes zoom { from {transform:scale(0.9)} to {transform:scale(1)} }
-        .close { position: fixed; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1001; }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>光與夜之戀 微博貼文查詢</title>
+<style>
+  :root{--bg:#0f1115;--panel:#1a1d24;--line:#2a2e38;--text:#e6e8ec;--muted:#9aa0aa;--accent:#6c8cff;--green:#4caf7d;--danger:#e0574b;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft JhengHei",system-ui,sans-serif;font-size:14px;line-height:1.55;}
+  header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  h1{font-size:17px;margin:0;font-weight:600;}
+  .stat{color:var(--muted);font-size:13px;} .stat b{color:var(--text);}
+  .wrap{padding:20px 24px;max-width:1600px;margin:0 auto;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;}
+  button{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-size:13px;cursor:pointer;font-weight:600;}
+  button:hover{filter:brightness(1.1);}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  button.green{background:var(--green);}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:12px;color:var(--muted);}
+  input[type=date],input[type=text]{background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:8px 10px;font-size:13px;}
+  input[type=text]{min-width:150px;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{color:var(--muted);font-size:12px;}
+  td.date{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums;}
+  td a{color:var(--accent);text-decoration:none;} td a:hover{text-decoration:underline;}
+  td .full{white-space:pre-wrap;}
+  .toggle{display:inline-block;margin-top:6px;color:var(--accent);cursor:pointer;font-size:13px;user-select:none;}
+  .toggle:hover{text-decoration:underline;}
+  /* 卡片式：左文字、右圖片 */
+  .post{display:flex;gap:20px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px;transition:border-color .15s;}
+  .post:hover{border-color:#3a4150;}
+  .post-main{flex:1;min-width:0;}
+  .post-meta{display:flex;gap:14px;align-items:center;margin-bottom:6px;}
+  .post-meta .date{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .post-meta a{color:var(--accent);text-decoration:none;font-size:13px;}
+  .post-meta a:hover{text-decoration:underline;}
+  .full{white-space:pre-wrap;}
+  .vbadge{display:inline-block;background:#e0574b;color:#fff;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;margin-top:8px;}
+  /* 微博式方格圖：固定尺寸、裁切填滿 */
+  .imgs{flex-shrink:0;display:grid;gap:6px;}
+  .imgs.single{grid-template-columns:repeat(1,200px);}
+  .imgs.multi{grid-template-columns:repeat(3,104px);}
+  .imgs.single .thumb{width:200px;height:200px;}
+  .imgs.multi .thumb{width:104px;height:104px;}
+  .thumb{object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--line);background:#1a1d24;cursor:pointer;display:block;}
+  .imgs a{position:relative;display:block;}
+  .gifbadge{position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:1px;pointer-events:none;}
+  @media (max-width:820px){
+    .post{flex-direction:column;gap:12px;}
+    .imgs.single{grid-template-columns:repeat(1,160px);}
+    .imgs.single .thumb{width:160px;height:160px;}
+  }
+  .count{color:var(--muted);font-size:13px;margin:12px 0 0;}
+  .quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+  .quick .qlabel{font-size:12px;color:var(--muted);margin-right:2px;}
+  .quick button{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:99px;padding:6px 14px;font-size:13px;font-weight:500;}
+  .quick button:hover{border-color:var(--accent);}
+  .quick button.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .setup{font-size:13px;color:var(--muted);}
+  .setup input{min-width:420px;}
+  .err{color:var(--danger);}
+  .listhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:4px 4px 10px;border-bottom:2px solid var(--line);margin-bottom:4px;}
+  .listhead-title{font-size:15px;font-weight:600;color:var(--text);}
+  .listhead-hint{font-size:12px;color:var(--muted);margin-left:auto;}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
+  .seg-btn{background:transparent;color:var(--muted);border:none;border-radius:0;padding:6px 14px;font-weight:600;}
+  .seg-btn.active{background:var(--accent);color:#fff;}
+  .seg-btn:hover{filter:none;}
+</style>
 </head>
 <body>
+<header>
+  <h1>🌗 光與夜之戀 微博貼文查詢</h1>
+  <span class="stat">共 <b id="total">—</b> 篇</span>
+  <span class="seg" id="modeSeg">
+    <button id="modeSimp" class="seg-btn active">簡中</button><button id="modeTrad" class="seg-btn">繁中</button>
+  </span>
+  <span class="stat" id="updated"></span>
+</header>
 
-    <h1>光與夜之戀 - 典藏圖鑑</h1>
-    
-    <div id="timeline-container"></div>
-
-    <div id="imageModal" class="modal" onclick="closeModal(event)">
-        <span class="close">&times;</span>
-        <img class="modal-content" id="fullImage">
+<div class="wrap">
+  <!-- 首次使用：填資料來源網址（會記在這台瀏覽器，下次免填）-->
+  <div class="panel" id="setupPanel" style="display:none">
+    <div class="setup">
+      <p>首次使用請貼上兩個「已發布的試算表 CSV 網址」（試算表 → 檔案 → 共用 → 發布到網路 → 分別選工作表、格式 CSV）：</p>
+      <div class="row" style="margin-bottom:8px;">
+        <input type="text" id="csvUrl" placeholder="貼文工作表的 CSV 網址 …output=csv" />
+      </div>
+      <div class="row">
+        <input type="text" id="kwUrl" placeholder="「關鍵字」工作表的 CSV 網址（可留空，留空就沒有快捷按鈕）" />
+        <button id="btnSaveUrl">儲存並載入</button>
+      </div>
     </div>
+  </div>
 
-    <script>
-        // ==========================================
-        // 🌟 終極偷懶區：把你 Excel/表單 的內容直接貼在下面兩個反引號之間 🌟
-        // ==========================================
-        const rawData = `
-角色	圖片1(進化前)	圖片2(進化後)	日期	活動名稱	稀有度
-蕭逸	https://i.meee.com.tw/PiRdLBQ.jpg	https://i.meee.com.tw/iWpOpVK.jpg	2025年8月9日	202508_七夕活動	六星
-陸沉	66_1.jpg	66_2.jpg	2025年8月9日	202508_七夕活動	六星
-齊司禮	77_1.jpg	77_2.jpg	2025年8月9日	202508_七夕活動	六星
-查理蘇	55_1.jpg	55_2.jpg	2025年8月9日	202508_七夕活動	六星
-夏鳴星	00_1.jpg	00_2.jpg	2025年8月9日	202508_七夕活動	六星
-全部	ALL_1.jpg	ALL_2.jpg			2025年8月9日	202508_七夕活動	三星
-        `;
+  <div class="panel">
+    <div class="row">
+      <div class="field"><label>起始日期</label><input type="date" id="from" /></div>
+      <div class="field"><label>結束日期</label><input type="date" id="to" /></div>
+      <div class="field" style="flex:1"><label>關鍵字（內文包含）</label><input type="text" id="q" placeholder="例如：五周年、卡池、維護…" /></div>
+      <button id="btnSearch">篩選</button>
+      <button id="btnReset" class="ghost">清除</button>
+      <button id="btnExport" class="green">下載符合條件的 CSV</button>
+      <button id="btnReload" class="ghost">重新整理資料</button>
+    </div>
+    <div class="quick" id="quickRow"><span class="qlabel">快捷篩選：</span></div>
+  </div>
 
-        // ==========================================
-        // 自動解析與生成邏輯 (以下都不用動)
-        // ==========================================
-        const rows = rawData.trim().split('\n');
-        const groupedData = {};
+  <div class="listhead">
+    <span class="listhead-title">貼文列表</span>
+    <span class="count" id="count" style="margin:0"></span>
+    <span class="listhead-hint">點縮圖看大圖 · 點「開啟原貼」到微博</span>
+  </div>
+  <div id="list"></div>
+</div>
 
-        rows.forEach(row => {
-            if (!row.trim()) return; 
-            
-            // 支援 Excel 貼上的 Tab 分隔，或是純文字的逗號分隔
-            const separator = row.includes('\t') ? '\t' : ',';
-            const cols = row.split(separator);
-            
-            // 略過標題行
-            if (cols[0].trim() === "角色") return;
+<script>
+// ===== 資料來源網址（部署到 GitHub Pages 時，直接把網址填在這兩行最方便）=====
+const HARD_CODED_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=51049009&single=true&output=csv";          // 貼文工作表 CSV（A日期 B簡體 C繁中 D連結）
+const HARD_CODED_KEYWORD_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRr-lAZ46yjdxWG7wKTdyebmiVbJILkNkpsdC7_8axweigb71G8_BLqC4tBhLREJKUaJZ4KVnRMVSeu/pub?gid=1065540326&single=true&output=csv";      // 關鍵字工作表 CSV（A標籤 B簡中詞 C繁中詞）
+// =============================================================================
 
-            // 抓取你的欄位對應 (0:角色, 1:圖片1, 2:圖片2, 3:日期, 4:活動名稱, 5:稀有度)
-            const character = cols[0] ? cols[0].trim() : "";
-            let img1 = cols[1] ? cols[1].trim() : "";
-            let img2 = cols[2] ? cols[2].trim() : "";
-            const date = cols[3] ? cols[3].trim() : "未知時間";
-            const eventName = cols[4] ? cols[4].trim() : "未知活動";
-            const rarity = cols[5] ? cols[5].trim() : "";
+// 快捷篩選：從「關鍵字」工作表讀取。格式（跳過第一列標頭）：
+//   A欄=按鈕名稱，B欄=簡中關鍵字、C欄=繁中關鍵字（皆用半形逗號分隔多個詞）。
+//   會依目前「簡中/繁中」模式，用對應那欄的關鍵字去比對對應語言的內文。
+let QUICK_FILTERS = {}; // { 名稱: { simp:[...], trad:[...] } }
 
-            // 自動解碼網址亂碼
-            try { if (img1) img1 = decodeURIComponent(img1); } catch(e) {}
-            try { if (img2) img2 = decodeURIComponent(img2); } catch(e) {}
+const $=(id)=>document.getElementById(id);
+let ALL=[];
+let activeQuick=null;
+let mode="simp"; // 預設簡中； "simp" | "trad"
 
-            // 建立活動群組
-            if (!groupedData[eventName]) {
-                groupedData[eventName] = { date: date, cards: [] };
-            }
+function txt(p){ return mode==="trad" ? (p.trad||p.simp) : p.simp; } // 依模式取內文
 
-            // 處理圖片 1 (進化前 / 三星全體)
-            if (img1) {
-                let typeLabel = "進化前";
-                if (character === "全部" || rarity === "三星") typeLabel = "全體總覽";
-                
-                groupedData[eventName].cards.push({
-                    character: character,
-                    rarity: rarity,
-                    type: typeLabel,
-                    image: img1
-                });
-            }
+// 把微博原始圖網址，套上「百度代理 + weserv」讓它能在本站顯示（繞過微博防盜鏈）
+// E 欄存的是乾淨的 sinaimg 原始網址；萬一哪天代理失效，只要改這個函式即可。
+function proxify(u){
+  if(!u) return u;
+  if(/i\.ibb\.co|images\.weserv\.nl/.test(u)) return u;
+  const baidu = "image.baidu.com/search/down?url=" + u;
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu) + "&w=400";
+}
+// 點開看大圖用：不限寬，保留高清（mw2000）
+function proxifyBig(u){
+  if(!u) return u;
+  if(/i\.ibb\.co|images\.weserv\.nl/.test(u)) return u; // 圖床網址直連，不套代理
+  const baidu = "image.baidu.com/search/down?url=" + u;
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu);
+}
+// === R2 gif 設定 ===
+// gif 都上傳到這個 R2 公開網址下的資料夾，檔名用微博原始檔名。
+const R2_GIF_BASE = "https://pub-6493b8fc04fa443fb2ada996f501c257.r2.dev/LAN-weibo-gifs/";
+function gifFilename(u){ const m=u.match(/\/([^/]+\.gif)(\?|$)/i); return m?m[1]:u.split("/").pop(); }
+function r2gif(u){ return R2_GIF_BASE + gifFilename(u); }
 
-            // 處理圖片 2 (進化後)
-            if (img2) {
-                groupedData[eventName].cards.push({
-                    character: character,
-                    rarity: rarity,
-                    type: "進化後",
-                    image: img2
-                });
-            }
-        });
+// gif 點開：先試 R2（會動），R2 沒有就退 weserv 動畫版，再不行就開原貼
+function openGif(ev, a, postLink, animFallback){
+  ev.preventDefault();
+  const r2=a.getAttribute("href");
+  const probe=new Image();
+  let done=false;
+  const t=setTimeout(()=>{ if(!done){done=true;window.open(animFallback||postLink,"_blank");} },6000);
+  probe.onload=()=>{ if(!done){done=true;clearTimeout(t);window.open(r2,"_blank");} };
+  probe.onerror=()=>{
+    if(done) return; done=true; clearTimeout(t);
+    // R2 沒有 → 試 weserv 動畫版能不能載，能就開、不能就開原貼
+    const p2=new Image(); let d2=false;
+    const t2=setTimeout(()=>{ if(!d2){d2=true;window.open(postLink,"_blank");} },6000);
+    p2.onload=()=>{ if(!d2){d2=true;clearTimeout(t2);window.open(animFallback,"_blank");} };
+    p2.onerror=()=>{ if(!d2){d2=true;clearTimeout(t2);window.open(postLink,"_blank");} };
+    p2.src=animFallback;
+  };
+  probe.src=r2;
+  return false;
+}
+// gif 動圖大圖用：n=-1 保留所有幀（會動）+ 限寬（避免超大 gif 超過 weserv 像素上限）
+function proxifyGif(u){
+  if(!u) return u;
+  if(/i\.ibb\.co|images\.weserv\.nl/.test(u)) return u; // 圖床上的 gif 直連，本來就會動
+  const baidu = "image.baidu.com/search/down?url=" + u;
+  return "https://images.weserv.nl/?url=" + encodeURIComponent(baidu) + "&n=-1&w=600";
+}
+// 破圖時自動換尺寸重試：bmiddle → large → original → largest，總有一個代理過得了
+function imgFallback(img){
+  const sizes = ["bmiddle","wap360","large","orj960","original","orj1080","largest"];
+  let orig = img.getAttribute("data-orig") || "";
+  if(!orig) return;
+  let tried = parseInt(img.getAttribute("data-try")||"0",10);
+  // 依序把原始網址的尺寸段換成下一個候選尺寸
+  const candidates = ["large","orj1080","original","largest","mw690","bmiddle"];
+  if(tried >= candidates.length){ img.style.visibility="hidden"; return; } // 都試過還不行就藏起來
+  const next = candidates[tried];
+  const swapped = orig.replace(/(sinaimg\.cn\/)[^/]+(\/)/, `$1${next}$2`);
+  img.setAttribute("data-try", String(tried+1));
+  img.src = proxify(swapped);
+}
+function getUrl(){ return HARD_CODED_CSV_URL || localStorage.getItem("wb_csv_url") || ""; }
+function getKwUrl(){ return HARD_CODED_KEYWORD_URL || localStorage.getItem("wb_kw_url") || ""; }
 
-        // 渲染 HTML
-        const container = document.getElementById('timeline-container');
-        for (const [eventName, data] of Object.entries(groupedData)) {
-            let eventHtml = `
-                <div class="timeline-event">
-                    <div class="event-title">${eventName}</div>
-                    <div class="event-date">時間線：${data.date}</div>
-                    <div class="gallery">
-            `;
-            
-            data.cards.forEach(card => {
-                eventHtml += `
-                    <div class="card" onclick="openModal('${card.image}')">
-                        <img src="${card.image}" alt="${card.character}" onerror="this.src='https://via.placeholder.com/200x300/333333/d4af37?text=找不到圖片'">
-                        <div class="card-info">
-                            <strong>${card.character}</strong><br>
-                            <span class="card-tag">${card.rarity} · ${card.type}</span>
-                        </div>
-                    </div>
-                `;
-            });
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  const rows=[];let row=[],f="",q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;}else q=false;} else f+=c; }
+    else{ if(c==='"')q=true; else if(c===','){row.push(f);f="";} else if(c==='\n'){row.push(f);rows.push(row);row=[];f="";} else if(c==='\r'){} else f+=c; }
+  }
+  if(f.length||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function ts(d){const x=new Date((d||"").replace(" ","T")+":00");return isNaN(x)?0:x.getTime();}
+function splitKw(s){ return (s||"").split(/[,，]/).map(x=>x.trim()).filter(Boolean); } // 半形/全形逗號都吃
 
-            eventHtml += `</div></div>`;
-            container.innerHTML += eventHtml;
+async function loadKeywords(){
+  QUICK_FILTERS={};
+  const url=getKwUrl();
+  if(url){
+    try{
+      const r=await fetch(url);
+      const rows=parseCSV(await r.text());
+      for(let i=1;i<rows.length;i++){ // 跳過標頭
+        const name=(rows[i][0]||"").trim();
+        if(!name)continue;
+        const simp=splitKw(rows[i][1]);
+        const trad=splitKw(rows[i][2]);
+        if(simp.length||trad.length)QUICK_FILTERS[name]={simp,trad};
+      }
+    }catch(e){ /* 讀不到就沒有快捷按鈕 */ }
+  }
+  renderQuick();
+}
+
+async function load(){
+  const url=getUrl();
+  if(!url){ $("setupPanel").style.display="block"; return; }
+  $("setupPanel").style.display="none";
+  $("count").textContent="載入中…";
+  await loadKeywords();
+  try{
+    const r=await fetch(url);
+    const rows=parseCSV(await r.text());
+    // 欄位： 0=日期 1=簡體 2=繁中 3=連結 4=圖片(換行分隔) 5=類型
+    ALL=rows.slice(1).filter(r=>r[3]).map(r=>({
+      date:r[0]||"",simp:r[1]||"",trad:r[2]||"",link:r[3],
+      images:(r[4]||"").split(/[\n\r]+/).map(s=>s.trim()).filter(Boolean),
+      type:r[5]||"圖文",
+      ts:ts(r[0])
+    }));
+    ALL.sort((a,b)=>b.ts-a.ts);
+    $("total").textContent=ALL.length;
+    doSearch();
+  }catch(e){
+    $("count").innerHTML='<span class="err">載入失敗，請確認資料來源網址、且試算表已「發布到網路」。'+e+'</span>';
+  }
+}
+
+function filtered(){
+  let a=ALL.slice();
+  if($("from").value){const t=new Date($("from").value+"T00:00:00").getTime();a=a.filter(p=>p.ts>=t);}
+  if($("to").value){const t=new Date($("to").value+"T23:59:59").getTime();a=a.filter(p=>p.ts<=t);}
+  if(activeQuick){
+    const set=QUICK_FILTERS[activeQuick];
+    const kws=(mode==="trad"?set.trad:set.simp).map(k=>k.toLowerCase());
+    a=a.filter(p=>{const t=txt(p).toLowerCase();return kws.some(k=>t.includes(k));});
+  }else{
+    const q=$("q").value.trim().toLowerCase();
+    if(q)a=a.filter(p=>txt(p).toLowerCase().includes(q));
+  }
+  return a;
+}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+const LIMIT=400;
+function doSearch(){
+  const a=filtered();
+  $("count").textContent=`符合條件：${a.length} 篇`;
+  $("list").innerHTML=a.slice(0,800).map(p=>{
+    const t=txt(p);
+    // 文字
+    let textHtml;
+    if(t.length>LIMIT){
+      textHtml=`<div class="full" data-open="0">${esc(t.slice(0,LIMIT))}…</div>`
+          +`<span class="toggle">展開全文 ▼</span>`
+          +`<span class="raw" style="display:none">${esc(t)}</span>`;
+    }else{
+      textHtml=`<div class="full">${esc(t)}</div>`;
+    }
+    if(p.type==="影片"){ textHtml+=`<div><span class="vbadge">🎬 含影片，點「開啟原貼」觀看</span></div>`; }
+    else if(p.type==="直播"){ textHtml+=`<div><span class="vbadge">📡 直播，點「開啟原貼」查看</span></div>`; }
+    else if(p.type==="轉發"){ textHtml+=`<div><span class="vbadge" style="background:#4a5568">🔁 轉發</span></div>`; }
+    // 圖片（微博式方格）；E 欄存原始網址，顯示時即時套代理
+    let imgsHtml="";
+    if(p.images&&p.images.length){
+      const cls=p.images.length===1?"single":"multi";
+      imgsHtml=`<div class="imgs ${cls}">`+p.images.map(u=>{
+        const isGif=/\.gif(\?|$)/i.test(u);
+        const badge = isGif ? `<span class="gifbadge">動圖</span>` : "";
+        if(isGif){
+          // 縮圖：用 weserv 顯示「靜態」小圖（畫面清爽、載入輕、省 R2 讀取），加「動圖」標記
+          // 點開：才連 R2 完整動圖（會動）；R2 沒有則退回 weserv 動畫版或原貼
+          const thumb=proxify(u);
+          const r2=r2gif(u);
+          const animFallback=proxifyGif(u.replace(/(sinaimg\.cn\/)[^/]+(\/)/, `$1large$2`));
+          return `<a href="${r2}" target="_blank" onclick="return openGif(event,this,'${p.link}','${animFallback}')"><img class="thumb" loading="lazy" src="${thumb}" data-orig="${u}" onerror="imgFallback(this)" />${badge}</a>`;
         }
+        const src=proxify(u);                                   // 縮圖：小尺寸（快、靜態）
+        const big=proxifyBig(u.replace(/(sinaimg\.cn\/)[^/]+(\/)/, `$1mw2000$2`)); // 點開：mw2000 高清
+        return `<a href="${big}" target="_blank"><img class="thumb" loading="lazy" src="${src}" data-orig="${u}" onerror="imgFallback(this)" /></a>`;
+      }).join("")+`</div>`;
+    }
+    return `<div class="post">
+      <div class="post-main">
+        <div class="post-meta"><span class="date">${p.date}</span><a href="${p.link}" target="_blank">開啟原貼 ↗</a></div>
+        ${textHtml}
+      </div>
+      ${imgsHtml}
+    </div>`;
+  }).join("")+(a.length>800?`<p class="count">（畫面只顯示前 800 篇，下載 CSV 為全部 ${a.length} 篇）</p>`:"");
 
-        // 燈箱互動功能
-        function openModal(imageSrc) {
-            document.getElementById("imageModal").style.display = "block";
-            document.getElementById("fullImage").src = imageSrc;
-        }
-        function closeModal(event) {
-            if (event.target.id === 'imageModal' || event.target.className === 'close') {
-                document.getElementById("imageModal").style.display = "none";
-            }
-        }
-    </script>
+  document.querySelectorAll("#list .toggle").forEach(t=>{
+    t.onclick=()=>{
+      const div=t.previousElementSibling;
+      const raw=t.nextElementSibling.textContent;
+      const open=div.dataset.open==="1";
+      if(open){ div.innerHTML=esc(raw.slice(0,LIMIT))+"…"; t.textContent="展開全文 ▼"; div.dataset.open="0"; }
+      else    { div.innerHTML=esc(raw);                    t.textContent="收合 ▲";     div.dataset.open="1"; }
+    };
+  });
+}
+function download(){
+  const a=filtered();
+  const cell=s=>`"${String(s??"").replace(/"/g,'""')}"`;
+  const csv="\uFEFF日期,內文,連結,圖片,類型\n"+a.map(p=>[cell(p.date),cell(txt(p)),cell(p.link),cell((p.images||[]).join("\n")),cell(p.type||"圖文")].join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const u=URL.createObjectURL(blob);const link=document.createElement("a");
+  link.href=u;link.download="weibo_"+mode+"_"+Date.now()+".csv";link.click();URL.revokeObjectURL(u);
+}
+
+function renderQuick(){
+  const row=$("quickRow");
+  row.querySelectorAll("button").forEach(b=>b.remove());
+  const names=Object.keys(QUICK_FILTERS);
+  row.style.display=names.length?"flex":"none";
+  if(activeQuick&&!QUICK_FILTERS[activeQuick])activeQuick=null;
+  names.forEach(name=>{
+    const b=document.createElement("button");
+    b.textContent=name; b.dataset.name=name;
+    b.onclick=()=>{
+      if(activeQuick===name){ activeQuick=null; }
+      else { activeQuick=name; $("q").value=""; }
+      updateQuickUI(); doSearch();
+    };
+    row.appendChild(b);
+  });
+  updateQuickUI();
+}
+function updateQuickUI(){
+  document.querySelectorAll("#quickRow button").forEach(b=>{
+    b.classList.toggle("active", b.dataset.name===activeQuick);
+  });
+}
+function setMode(m){
+  mode=m;
+  $("modeSimp").classList.toggle("active",m==="simp");
+  $("modeTrad").classList.toggle("active",m==="trad");
+  doSearch();
+}
+
+$("modeSimp").onclick=()=>setMode("simp");
+$("modeTrad").onclick=()=>setMode("trad");
+$("btnSaveUrl").onclick=()=>{
+  localStorage.setItem("wb_csv_url",$("csvUrl").value.trim());
+  localStorage.setItem("wb_kw_url",$("kwUrl").value.trim());
+  load();
+};
+$("btnSearch").onclick=()=>{ activeQuick=null; updateQuickUI(); doSearch(); };
+$("btnReset").onclick=()=>{$("from").value=$("to").value=$("q").value="";activeQuick=null;updateQuickUI();doSearch();};
+$("btnExport").onclick=download;
+$("btnReload").onclick=load;
+
+load();
+</script>
 </body>
 </html>
