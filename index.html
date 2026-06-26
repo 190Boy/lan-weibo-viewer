@@ -211,7 +211,20 @@ function parseCSV(text){
   if(f.length||row.length){row.push(f);rows.push(row);}
   return rows;
 }
-function ts(d){const x=new Date((d||"").replace(" ","T")+":00");return isNaN(x)?0:x.getTime();}
+function ts(d){
+  d=(d||"").trim();
+  if(!d) return 0;
+  // 解析 "YYYY-MM-DD HH:MM"（容許個位數的月/日/時/分，補零）
+  const m=d.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})(?:\D+(\d{1,2})\D+(\d{1,2}))?/);
+  if(m){
+    const [_,Y,Mo,D,H,Mi]=m;
+    const pad=n=>String(n).padStart(2,"0");
+    const iso=`${Y}-${pad(Mo)}-${pad(D)}T${pad(H||0)}:${pad(Mi||0)}:00`;
+    const x=new Date(iso);
+    if(!isNaN(x)) return x.getTime();
+  }
+  const x2=new Date(d); return isNaN(x2)?0:x2.getTime();
+}
 function splitKw(s){ return (s||"").split(/[,，]/).map(x=>x.trim()).filter(Boolean); } // 半形/全形逗號都吃
 
 async function loadKeywords(){
